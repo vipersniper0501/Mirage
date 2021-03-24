@@ -55,6 +55,10 @@ def Hash_Compare():
     New_Hashes_Keys = list(New_Hashes.keys())
     Original_Hashes_Keys = list(Original_Hashes.keys())
     if New_Hashes_Keys != Original_Hashes_Keys:
+        # Need to be able to handle newly created files
+        # here. could create some kinda of offset as to
+        # where to compare from
+        
         return 1
     for i in range(len(Original_Hashes_Values)):
         if Original_Hashes_Values[i] != New_Hashes_Values[i]:
@@ -81,10 +85,10 @@ if __name__ == "__main__":
     while True:
         Scan_Files(Original_Hashes)
         test_Change_File()
-        time.sleep(5)
+        time.sleep(60)
         Scan_Files(New_Hashes)
         result = Hash_Compare()
-        if result != 1:
+        if result == 0:
             for i in range(len(Possible_Discrepancies)):
                 print("\n\n\nList of Possible Discrepencies:")
                 print(
