@@ -4,6 +4,12 @@ import sys
 import hashlib
 from platform import uname
 
+from PyQt5 import QtGui
+from PyQt5.QtWidgets import QMainWindow, QApplication, QMessageBox, QDialog
+from PyQt5.QtCore import Qt
+
+from UI.MirageMainWindow import Ui_MainWindow
+
 try:
     Path = sys.argv[1]
 except Exception:
@@ -40,7 +46,8 @@ def Scan_Files(dictionary):
                         file.close
             except Exception as e:
                 print(
-                    f"File '{f}' was found but could not be accessed because of the following exception: {e}"
+                    f"File '{f}' was found but could not be accessed because"
+                    f"of the following exception: {e}"
                 )
             dictionary[os.path.join(root, f)] = sha256.hexdigest()
     print(dictionary)
@@ -58,12 +65,13 @@ def Hash_Compare():
         # Need to be able to handle newly created files
         # here. could create some kinda of offset as to
         # where to compare from
-        
+
         return 1
     for i in range(len(Original_Hashes_Values)):
         if Original_Hashes_Values[i] != New_Hashes_Values[i]:
             print(
-                f"[File Changed] POSSIBLE DISCREPANCY FOUND: File {New_Hashes_Keys[i]}"
+                "[File Changed] POSSIBLE DISCREPANCY FOUND:"
+                f"File {New_Hashes_Keys[i]}"
             )
             if New_Hashes_Keys[i] not in Possible_Discrepancies:
                 temp = [Original_Hashes_Values[i], New_Hashes_Values[i]]
@@ -77,11 +85,7 @@ def test_Change_File():
         f.close
 
 
-if __name__ == "__main__":
-    pdk = list(Possible_Discrepancies.keys())
-    pdv = list(Possible_Discrepancies.values())
-    New_Hashes_Keys = list(New_Hashes.keys())
-    Original_Hashes_Keys = list(Original_Hashes.keys())
+def test_loop():
     while True:
         Scan_Files(Original_Hashes)
         test_Change_File()
@@ -92,6 +96,24 @@ if __name__ == "__main__":
             for i in range(len(Possible_Discrepancies)):
                 print("\n\n\nList of Possible Discrepencies:")
                 print(
-                    f"\n\nFile: {list(Possible_Discrepancies.keys())[i]}\nOriginal Hash: {list(Possible_Discrepancies.values())[i][0]}\nNew Hash: {list(Possible_Discrepancies.values())[i][1]}"
+                    f"\n\nFile: {list(Possible_Discrepancies.keys())[i]}\n"
+                    f"Original Hash: "
+                    f"{list(Possible_Discrepancies.values())[i][0]}\n"
+                    f"New Hash: {list(Possible_Discrepancies.values())[i][1]}"
                 )
             break
+
+
+class MirageMainWindow(QMainWindow, Ui_MainWindow):
+    def __init__(self, parent=None):
+        super(MirageMainWindow, self).__init__(parent)
+        self.setupUi(self)
+
+
+if __name__ == "__main__":
+    QApplication.setAttribute(Qt.AA_EnableHighDpiScaling, True)
+    QApplication.setAttribute(Qt.AA_UseHighDpiPixmaps, True)
+    app = QApplication(sys.argv)
+    main = MirageMainWindow()
+    main.show()
+    sys.exit(app.exec_())
