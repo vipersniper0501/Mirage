@@ -49,7 +49,7 @@
         <string notr="true"/>
        </property>
        <property name="text">
-        <string>Mirage</string>
+        <string>Mirage Scanner</string>
        </property>
        <property name="alignment">
         <set>Qt::AlignCenter</set>
@@ -58,6 +58,22 @@
         <number>0</number>
        </property>
       </widget>
+     </item>
+     <item>
+      <spacer name="verticalSpacer">
+       <property name="orientation">
+        <enum>Qt::Vertical</enum>
+       </property>
+       <property name="sizeType">
+        <enum>QSizePolicy::Fixed</enum>
+       </property>
+       <property name="sizeHint" stdset="0">
+        <size>
+         <width>14</width>
+         <height>75</height>
+        </size>
+       </property>
+      </spacer>
      </item>
      <item>
       <widget class="QPushButton" name="ScanButton">
@@ -91,14 +107,43 @@
       </widget>
      </item>
      <item>
+      <widget class="QLabel" name="label">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="styleSheet">
+        <string notr="true">Margin-Left: 10px;</string>
+       </property>
+       <property name="text">
+        <string>Progress Hashing and Checking files:</string>
+       </property>
+      </widget>
+     </item>
+     <item>
       <widget class="QProgressBar" name="progressBar">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
        <property name="font">
         <font>
          <family>Arial</family>
+         <pointsize>9</pointsize>
         </font>
+       </property>
+       <property name="styleSheet">
+        <string notr="true">Margin-left: 10px; Margin-right: 10px;</string>
        </property>
        <property name="value">
         <number>24</number>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignCenter</set>
        </property>
       </widget>
      </item>
@@ -109,6 +154,9 @@
          <family>Arial</family>
         </font>
        </property>
+       <property name="cursor">
+        <cursorShape>IBeamCursor</cursorShape>
+       </property>
        <property name="styleSheet">
         <string notr="true">Background: white;Border: 1px solid black;Margin: 10px</string>
        </property>
@@ -118,9 +166,75 @@
        <property name="alignment">
         <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignTop</set>
        </property>
+       <property name="wordWrap">
+        <bool>true</bool>
+       </property>
+       <property name="textInteractionFlags">
+        <set>Qt::LinksAccessibleByMouse|Qt::TextSelectableByMouse</set>
+       </property>
       </widget>
      </item>
     </layout>
+   </widget>
+   <widget class="QPlainTextEdit" name="ScanLocationInput">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>110</y>
+      <width>321</width>
+      <height>31</height>
+     </rect>
+    </property>
+    <property name="cursor" stdset="0">
+     <cursorShape>IBeamCursor</cursorShape>
+    </property>
+    <property name="tabChangesFocus">
+     <bool>true</bool>
+    </property>
+    <property name="placeholderText">
+     <string>./</string>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="ScanLocationBrowse">
+    <property name="geometry">
+     <rect>
+      <x>364</x>
+      <y>110</y>
+      <width>111</width>
+      <height>31</height>
+     </rect>
+    </property>
+    <property name="font">
+     <font>
+      <family>Arial</family>
+      <pointsize>10</pointsize>
+     </font>
+    </property>
+    <property name="cursor">
+     <cursorShape>PointingHandCursor</cursorShape>
+    </property>
+    <property name="text">
+     <string>Browse</string>
+    </property>
+   </widget>
+   <widget class="QLabel" name="ScanLabel">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>89</y>
+      <width>171</width>
+      <height>21</height>
+     </rect>
+    </property>
+    <property name="font">
+     <font>
+      <family>Arial</family>
+      <pointsize>11</pointsize>
+     </font>
+    </property>
+    <property name="text">
+     <string>Where to scan/monitor:</string>
+    </property>
    </widget>
   </widget>
  </widget>
