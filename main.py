@@ -85,11 +85,12 @@ class MirageMainWindow(QMainWindow, Ui_MainWindow):
     Possible_Discrepancies = {}
     Path = ""
     updateSignal = pyqtSignal(str)
+    discrepancy_Signal = pyqtSignal()
 
     def __init__(self, parent=None):
         super(MirageMainWindow, self).__init__(parent)
         self.setupUi(self)
-        self.setFixedSize(800, 598)
+        self.setFixedSize(1078, 598)
         try:
             self.Path = sys.argv[1]
         except IndexError:
@@ -106,18 +107,16 @@ class MirageMainWindow(QMainWindow, Ui_MainWindow):
         :param dictionary: the dictionary that will be appended with hashes
         """
 
-        # TODO: replace os.walk with os.scandir for faster performance.
         for root, d_names, f_names in os.walk(self.Path):
             if self.running is False:
                 return 1
-            self.updateSignal.emit("\nOS Walk Result:")
             self.updateSignal.emit("\n"
                                    + str(root)
                                    + str(d_names)
                                    + str(f_names))
             for f in f_names:
                 sha1 = hashlib.sha1()
-                self.updateSignal.emit(str(f))
+                self.updateSignal.emit("\n"+str(f))
                 try:
                     with open(os.path.join(root, f), 'rb') as file:
                         while True:
@@ -131,7 +130,7 @@ class MirageMainWindow(QMainWindow, Ui_MainWindow):
                         f"because of the following exception: {e}"
                     )
                 dictionary[os.path.join(root, f)] = sha1.hexdigest()
-        self.updateSignal.emit(str(dictionary))
+        self.updateSignal.emit("\n"+str(dictionary))
 
     def Hash_Compare(self):
 
@@ -139,46 +138,62 @@ class MirageMainWindow(QMainWindow, Ui_MainWindow):
         Compares the Hashes generated to determine possible discrepancies
         """
 
-        # TODO: replace most of this with os.filecmp()
         Original_Hashes_Values = list(self.Original_Hashes.values())
         New_Hashes_Values = list(self.New_Hashes.values())
         New_Hashes_Keys = list(self.New_Hashes.keys())
         Original_Hashes_Keys = list(self.Original_Hashes.keys())
-        if len(New_Hashes_Keys) != len(Original_Hashes_Keys):
-            # Need to be able to handle newly created files
-            # here. could create some kinda of offset as to
-            # where to compare from
-            print("New file was added")
-        for x, i in enumerate(Original_Hashes_Values):
+        for x, hashes in enumerate(New_Hashes_Values):
             if self.running is False:
                 return 1
-            if i != New_Hashes_Values[x]:
+            if len(New_Hashes_Keys) > len(Original_Hashes_Keys):
+                if New_Hashes_Keys[x] not in Original_Hashes_Keys:
+                    if New_Hashes_Keys[x] not in self.Possible_Discrepancies:
+                        self.Possible_Discrepancies[
+                            New_Hashes_Keys[x]
+                        ] = 1
+                        self.discrepancy_Signal.emit()
+                print("New file was added")
+            if len(New_Hashes_Keys) < len(Original_Hashes_Keys):
+                if Original_Hashes_Keys[x] not in New_Hashes_Keys:
+                    if Original_Hashes_Keys[x] not in self.Possible_Discrepancies:
+                        self.Possible_Discrepancies[
+                            Original_Hashes_Keys[x]
+                        ] = 2
+                        self.discrepancy_Signal.emit()
+                    print("File was removed")
+            if hashes not in Original_Hashes_Values and \
+                    Original_Hashes_Keys[x] in New_Hashes_Keys:
                 print(
-                    "[File Changed] POSSIBLE DISCREPANCY FOUND:"
-                    f"File {New_Hashes_Keys[x]}"
+                    "[File Changed]:\033[91m"
+                    f"File {Original_Hashes_Keys[x]}\033[0m"
                 )
                 if New_Hashes_Keys[x] not in self.Possible_Discrepancies:
-                    temp = [i, New_Hashes_Values[x]]
-                    self.Possible_Discrepancies[New_Hashes_Keys[x]] = temp
+                    self.Possible_Discrepancies[Original_Hashes_Keys[x]] = 0
+                    self.discrepancy_Signal.emit()
         return 0
 
     def Scan_Loop(self):
 
         """
         The loop that scans the os looking for possible discrepancies
+
+        NOTE: This is run in a seperate thread
         """
 
         while self.running is True:
             print(self.Path)
+            self.Original_Hashes.clear()
+            self.New_Hashes.clear()
+
             if self.Scan_Files(self.Original_Hashes) == 1:
                 break
-            time.sleep(10)
+
+            time.sleep(20)
+
             if self.Scan_Files(self.New_Hashes) == 1:
                 break
-            result = self.Hash_Compare()
-            if result == 0:
-                print(self.Possible_Discrepancies)
-            elif result == 1:
+
+            if self.Hash_Compare() == 1:
                 break
 
     @pyqtSlot(str)
@@ -188,11 +203,31 @@ class MirageMainWindow(QMainWindow, Ui_MainWindow):
         Updates UI log output
         """
 
-        print("updating log")
         print(data)
         self.LogOutput.setText(self.LogOutput.toPlainText() + data)
+        # Ensures that the user always sees that latest log (at the bottom)
         self.LogOutput.verticalScrollBar().setValue(
-            self.LogOutput.verticalScrollBar().maximum())
+            self.LogOutput.verticalScrollBar().maximum()
+        )
+
+    @pyqtSlot()
+    def discrepancy_update(self):
+
+        """
+        Updates the discrepancy logs
+        """
+
+        _type = [
+            "[File Hash Changed]: ",
+            "[File Has Been Added]: ",
+            "[File Has Been Removed]: "
+        ]
+
+        self.DiscrepancyOutput.setText("")
+
+        for entry in self.Possible_Discrepancies.keys():
+            og = self.DiscrepancyOutput.toPlainText()
+            self.DiscrepancyOutput.setText(og + f"{_type[self.Possible_Discrepancies[entry]]}{entry}\n")
 
     def Mirage_Function_Assigns(self):
 
@@ -245,6 +280,7 @@ class MirageMainWindow(QMainWindow, Ui_MainWindow):
         def Folder_Input_Text():
             self.Path = self.ScanLocationInput.toPlainText()
 
+        self.discrepancy_Signal.connect(self.discrepancy_update)
         self.updateSignal.connect(self.Log_Update)
         self.ScanButton.clicked.connect(Scan_Button_Action)
         self.ScanLocationBrowse.clicked.connect(Folder_Selection)
