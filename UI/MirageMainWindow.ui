@@ -145,32 +145,15 @@
        <property name="alignment">
         <set>Qt::AlignCenter</set>
        </property>
+       <property name="invertedAppearance">
+        <bool>false</bool>
+       </property>
       </widget>
      </item>
      <item>
-      <widget class="QLabel" name="LogOutput">
-       <property name="font">
-        <font>
-         <family>Arial</family>
-        </font>
-       </property>
-       <property name="cursor">
-        <cursorShape>IBeamCursor</cursorShape>
-       </property>
+      <widget class="QTextBrowser" name="LogOutput">
        <property name="styleSheet">
         <string notr="true">Background: white;Border: 1px solid black;Margin: 10px</string>
-       </property>
-       <property name="text">
-        <string/>
-       </property>
-       <property name="alignment">
-        <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignTop</set>
-       </property>
-       <property name="wordWrap">
-        <bool>true</bool>
-       </property>
-       <property name="textInteractionFlags">
-        <set>Qt::LinksAccessibleByMouse|Qt::TextSelectableByMouse</set>
        </property>
       </widget>
      </item>

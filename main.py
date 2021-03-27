@@ -3,17 +3,15 @@ import time
 import sys
 import hashlib
 from threading import Thread
-from queue import Queue
 from platform import uname
 
 from PyQt5.QtWidgets import QMainWindow, QApplication,\
                             QFileDialog
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, pyqtSlot, pyqtSignal
 
 from UI.MirageMainWindow import Ui_MainWindow
 
 threads = []
-q_log = Queue()
 
 
 def NewThread(com, Returning: bool, thread_ID: str, *arguments):
@@ -32,11 +30,10 @@ def NewThread(com, Returning: bool, thread_ID: str, *arguments):
         New Thread Class
         """
 
-        def __init__(self, group=None, target=None, name=None, queue=None,
+        def __init__(self, group=None, target=None, name=None,
                      args=(), kwargs=None, *, daemon=None):
             Thread.__init__(self, group, target, name, args, kwargs,
                             daemon=daemon)
-            self.queue = queue
             self.daemon = True
             self._return = None
 
@@ -51,16 +48,9 @@ def NewThread(com, Returning: bool, thread_ID: str, *arguments):
             Thread.join(self)
             return self._return
 
-    try:
-        # NOTE: q is a global variable: q = Queue()
-        threads.append(NewThreadWorker(target=com,
-                                       name=thread_ID,
-                                       args=(*arguments,),
-                                       queue=q_log))
-    except NameError:
-        threads.append(NewThreadWorker(target=com,
-                                       name=thread_ID,
-                                       args=(*arguments,)))
+    threads.append(NewThreadWorker(target=com,
+                                   name=thread_ID,
+                                   args=(*arguments,)))
     if not Returning:
         print(threads)
         threads[-1].start()
@@ -90,6 +80,7 @@ class MirageMainWindow(QMainWindow, Ui_MainWindow):
     New_Hashes = {}
     Possible_Discrepancies = {}
     Path = ""
+    updateSignal = pyqtSignal(str)
 
     def __init__(self, parent=None):
         super(MirageMainWindow, self).__init__(parent)
@@ -97,9 +88,8 @@ class MirageMainWindow(QMainWindow, Ui_MainWindow):
         self.setFixedSize(800, 598)
         try:
             self.Path = sys.argv[1]
-        except Exception:
+        except IndexError:
             self.Path = "./"
-        print(self.LogOutput)
         self.Mirage_Function_Assigns()
 
     def Scan_Files(self, dictionary):
@@ -114,14 +104,14 @@ class MirageMainWindow(QMainWindow, Ui_MainWindow):
         for root, d_names, f_names in os.walk(self.Path):
             if self.running is False:
                 return 1
-            #  self.LogOutput.setText("OS Walk Result:\n")
-            #  self.LogOutput.setText(root, d_names, f_names)
-            q_log.put("OS Walk Result:")
-            print("OS Walk Result:")
-            print(root, d_names, f_names)
+            self.updateSignal.emit("\nOS Walk Result:")
+            self.updateSignal.emit("\n"
+                                   + str(root)
+                                   + str(d_names)
+                                   + str(f_names))
             for f in f_names:
                 sha1 = hashlib.sha1()
-                print(f)
+                self.updateSignal.emit(str(f))
                 try:
                     with open(os.path.join(root, f), 'rb') as file:
                         while True:
@@ -130,12 +120,12 @@ class MirageMainWindow(QMainWindow, Ui_MainWindow):
                                 break
                             sha1.update(data)
                 except Exception as e:
-                    print(
+                    self.updateSignal.emit(
                         f"File '{f}' could not be accessed "
                         f"because of the following exception: {e}"
                     )
                 dictionary[os.path.join(root, f)] = sha1.hexdigest()
-        print(dictionary)
+        self.updateSignal.emit(str(dictionary))
 
     def Hash_Compare(self):
         """
@@ -170,7 +160,6 @@ class MirageMainWindow(QMainWindow, Ui_MainWindow):
         """
         while self.running is True:
             print(self.Path)
-            #  q_log.put("Hello WOrld from a thread!")
             if self.Scan_Files(self.Original_Hashes) == 1:
                 break
             time.sleep(10)
@@ -182,16 +171,16 @@ class MirageMainWindow(QMainWindow, Ui_MainWindow):
             elif result == 1:
                 break
 
-    def Log_Update(self):
+    @pyqtSlot(str)
+    def Log_Update(self, data):
         """
         Updates UI log output
         """
-        # Blocks UI thread.
-        while self.running is True:
-            print("updating log")
-            _log = q_log.get()
-            print(_log)
-            self.LogOutput.setText(_log)
+        print("updating log")
+        print(data)
+        self.LogOutput.setText(self.LogOutput.toPlainText() + data)
+        self.LogOutput.verticalScrollBar().setValue(
+            self.LogOutput.verticalScrollBar().maximum())
 
     def Mirage_Function_Assigns(self):
         """
@@ -217,8 +206,6 @@ class MirageMainWindow(QMainWindow, Ui_MainWindow):
                                                   "Margin-left: 10px;"
                                                   "Margin-right: 10px;")
                     NewThread(self.Scan_Loop, False, "Scanning System")
-
-                #  self.Log_Update()
             elif self.running is True:
                 self.running = False
                 thread_names = []
@@ -244,6 +231,7 @@ class MirageMainWindow(QMainWindow, Ui_MainWindow):
         def Folder_Input_Text():
             self.Path = self.ScanLocationInput.toPlainText()
 
+        self.updateSignal.connect(self.Log_Update)
         self.ScanButton.clicked.connect(Scan_Button_Action)
         self.ScanLocationBrowse.clicked.connect(Folder_Selection)
         self.ScanLocationInput.textChanged.connect(Folder_Input_Text)
