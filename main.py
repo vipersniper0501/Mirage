@@ -3,19 +3,24 @@ import time
 import sys
 import hashlib
 from threading import Thread
+from queue import Queue
 from platform import uname
 
-from PyQt5 import QtGui
-from PyQt5.QtWidgets import QMainWindow, QApplication, QMessageBox, QDialog,\
+from PyQt5.QtWidgets import QMainWindow, QApplication,\
                             QFileDialog
 from PyQt5.QtCore import Qt
 
 from UI.MirageMainWindow import Ui_MainWindow
 
+threads = []
+q_log = Queue()
 
-def NewThread(com, Returning: bool, thread_ID, *arguments):
+
+def NewThread(com, Returning: bool, thread_ID: str, *arguments):
     """
     Will create a new thread for a function/command.
+    This Function requires a global list called threads for easy managemnet of
+    Threads
     :param com: Command to be Executed
     :param Returning: True/False Will the command return anything?
     :param thread_ID: Name of thread
@@ -27,10 +32,11 @@ def NewThread(com, Returning: bool, thread_ID, *arguments):
         New Thread Class
         """
 
-        def __init__(self, group=None, target=None, name=None, args=(),
-                     kwargs=None, *, daemon=None):
+        def __init__(self, group=None, target=None, name=None, queue=None,
+                     args=(), kwargs=None, *, daemon=None):
             Thread.__init__(self, group, target, name, args, kwargs,
                             daemon=daemon)
+            self.queue = queue
             self.daemon = True
             self._return = None
 
@@ -45,43 +51,32 @@ def NewThread(com, Returning: bool, thread_ID, *arguments):
             Thread.join(self)
             return self._return
 
-    ntw = NewThreadWorker(target=com, name=thread_ID, args=(*arguments,))
+    try:
+        # NOTE: q is a global variable: q = Queue()
+        threads.append(NewThreadWorker(target=com,
+                                       name=thread_ID,
+                                       args=(*arguments,),
+                                       queue=q_log))
+    except NameError:
+        threads.append(NewThreadWorker(target=com,
+                                       name=thread_ID,
+                                       args=(*arguments,)))
     if not Returning:
-        ntw.start()
+        print(threads)
+        threads[-1].start()
+        print(threads)
     else:
-        ntw.start()
-        return ntw.joinThread()
+        threads[-1].start()
+        return threads[-1].joinThread()
 
 
 def test_Change_File():
     """
     Small test for Hash Compare
     """
-    with open("./test", "+w") as f:
+    with open("./test", "w+") as f:
         f.write("Hello World!")
         f.close()
-
-
-#  def test_loop():
-    #  """
-    #  Small Test loop for all main functions
-    #  """
-    #  while True:
-        #  Scan_Files(Original_Hashes)
-        #  test_Change_File()
-        #  time.sleep(60)
-        #  Scan_Files(New_Hashes)
-        #  result = Hash_Compare()
-        #  if result == 0:
-            #  for i in range(len(Possible_Discrepancies)):
-                #  print("\n\n\nList of Possible Discrepencies:")
-                #  print(
-                    #  f"\n\nFile: {list(Possible_Discrepancies.keys())[i]}\n"
-                    #  f"Original Hash: "
-                    #  f"{list(Possible_Discrepancies.values())[i][0]}\n"
-                    #  f"New Hash: {list(Possible_Discrepancies.values())[i][1]}"
-                #  )
-            #  break
 
 
 class MirageMainWindow(QMainWindow, Ui_MainWindow):
@@ -91,7 +86,6 @@ class MirageMainWindow(QMainWindow, Ui_MainWindow):
 
     running = False
     BUF_SIZE = 65536
-    # TODO: move this to a .csv file maybe...
     Original_Hashes = {}
     New_Hashes = {}
     Possible_Discrepancies = {}
@@ -105,6 +99,7 @@ class MirageMainWindow(QMainWindow, Ui_MainWindow):
             self.Path = sys.argv[1]
         except Exception:
             self.Path = "./"
+        print(self.LogOutput)
         self.Mirage_Function_Assigns()
 
     def Scan_Files(self, dictionary):
@@ -115,11 +110,17 @@ class MirageMainWindow(QMainWindow, Ui_MainWindow):
 
         :param dictionary: the dictionary that will be appended with hashes
         """
+        # TODO: replace os.walk with os.scandir for faster performance.
         for root, d_names, f_names in os.walk(self.Path):
+            if self.running is False:
+                return 1
+            #  self.LogOutput.setText("OS Walk Result:\n")
+            #  self.LogOutput.setText(root, d_names, f_names)
+            q_log.put("OS Walk Result:")
             print("OS Walk Result:")
             print(root, d_names, f_names)
             for f in f_names:
-                sha256 = hashlib.sha256()
+                sha1 = hashlib.sha1()
                 print(f)
                 try:
                     with open(os.path.join(root, f), 'rb') as file:
@@ -127,59 +128,112 @@ class MirageMainWindow(QMainWindow, Ui_MainWindow):
                             data = file.read(self.BUF_SIZE)
                             if not data:
                                 break
-                            sha256.update(data)
+                            sha1.update(data)
                 except Exception as e:
                     print(
-                        f"File '{f}' was found but could not be accessed "
+                        f"File '{f}' could not be accessed "
                         f"because of the following exception: {e}"
                     )
-                dictionary[os.path.join(root, f)] = sha256.hexdigest()
+                dictionary[os.path.join(root, f)] = sha1.hexdigest()
         print(dictionary)
 
     def Hash_Compare(self):
         """
         Compares the Hashes generated to determine possible discrepancies
         """
+        # TODO: replace most of this with os.filecmp()
         Original_Hashes_Values = list(self.Original_Hashes.values())
         New_Hashes_Values = list(self.New_Hashes.values())
         New_Hashes_Keys = list(self.New_Hashes.keys())
         Original_Hashes_Keys = list(self.Original_Hashes.keys())
-        if New_Hashes_Keys != Original_Hashes_Keys:
+        if len(New_Hashes_Keys) != len(Original_Hashes_Keys):
             # Need to be able to handle newly created files
             # here. could create some kinda of offset as to
             # where to compare from
-
-            return 1
-        for i in range(len(Original_Hashes_Values)):
-            if Original_Hashes_Values[i] != New_Hashes_Values[i]:
+            print("New file was added")
+        for x, i in enumerate(Original_Hashes_Values):
+            if self.running is False:
+                return 1
+            if i != New_Hashes_Values[x]:
                 print(
                     "[File Changed] POSSIBLE DISCREPANCY FOUND:"
-                    f"File {New_Hashes_Keys[i]}"
+                    f"File {New_Hashes_Keys[x]}"
                 )
-                if New_Hashes_Keys[i] not in self.Possible_Discrepancies:
-                    temp = [Original_Hashes_Values[i], New_Hashes_Values[i]]
-                    self.Possible_Discrepancies[New_Hashes_Keys[i]] = temp
+                if New_Hashes_Keys[x] not in self.Possible_Discrepancies:
+                    temp = [i, New_Hashes_Values[x]]
+                    self.Possible_Discrepancies[New_Hashes_Keys[x]] = temp
         return 0
+
+    def Scan_Loop(self):
+        """
+        The loop that scans the os looking for possible discrepancies
+        """
+        while self.running is True:
+            print(self.Path)
+            #  q_log.put("Hello WOrld from a thread!")
+            if self.Scan_Files(self.Original_Hashes) == 1:
+                break
+            time.sleep(10)
+            if self.Scan_Files(self.New_Hashes) == 1:
+                break
+            result = self.Hash_Compare()
+            if result == 0:
+                print(self.Possible_Discrepancies)
+            elif result == 1:
+                break
+
+    def Log_Update(self):
+        """
+        Updates UI log output
+        """
+        # Blocks UI thread.
+        while self.running is True:
+            print("updating log")
+            _log = q_log.get()
+            print(_log)
+            self.LogOutput.setText(_log)
 
     def Mirage_Function_Assigns(self):
         """
         Assign functions and actions to the different buttons and inputs
         """
         def Scan_Button_Action():
+            global threads
             if self.running is False:
-                self.running = True
-                self.ScanButton.setText("Stop Scan")
-                self.ScanButton.setStyleSheet("Background: pink;"
-                                              "Border: 1px solid black;"
-                                              "Margin-left: 10px;"
-                                              "Margin-right: 10px;")
+                thread_names = []
+                for t in threads:
+                    if t.is_alive():
+                        thread_names.append(t.getName())
+                        print(thread_names)
+                    else:
+                        print("Thread is still alive!")
+                if "Scanning System" not in thread_names:
+                    self.running = True
+                    print(threads)
+                    print("\n\n\n")
+                    self.ScanButton.setText("Stop Scan")
+                    self.ScanButton.setStyleSheet("Background: pink;"
+                                                  "Border: 1px solid black;"
+                                                  "Margin-left: 10px;"
+                                                  "Margin-right: 10px;")
+                    NewThread(self.Scan_Loop, False, "Scanning System")
+
+                #  self.Log_Update()
             elif self.running is True:
                 self.running = False
-                self.ScanButton.setText("Begin Scan")
-                self.ScanButton.setStyleSheet("Background: lightgreen;"
-                                              "Border: 1px solid black;"
-                                              "Margin-left: 10px;"
-                                              "Margin-right: 10px;")
+                thread_names = []
+                for t in threads:
+                    if t.is_alive():
+                        thread_names.append(t.getName())
+                        print(thread_names)
+                    else:
+                        print("Thread is still alive!")
+                if "Scanning System" in thread_names:
+                    self.ScanButton.setText("Begin Scan")
+                    self.ScanButton.setStyleSheet("Background: lightgreen;"
+                                                  "Border: 1px solid black;"
+                                                  "Margin-left: 10px;"
+                                                  "Margin-right: 10px;")
 
         def Folder_Selection():
             dialog = str(QFileDialog.getExistingDirectory(self,
@@ -187,8 +241,12 @@ class MirageMainWindow(QMainWindow, Ui_MainWindow):
             self.ScanLocationInput.setPlainText(dialog)
             self.Path = dialog
 
+        def Folder_Input_Text():
+            self.Path = self.ScanLocationInput.toPlainText()
+
         self.ScanButton.clicked.connect(Scan_Button_Action)
         self.ScanLocationBrowse.clicked.connect(Folder_Selection)
+        self.ScanLocationInput.textChanged.connect(Folder_Input_Text)
 
 
 if __name__ == "__main__":
