@@ -151,9 +151,19 @@
       </widget>
      </item>
      <item>
+      <widget class="QLabel" name="label_2">
+       <property name="styleSheet">
+        <string notr="true">Margin-left: 10px; Margin-right: 10px;</string>
+       </property>
+       <property name="text">
+        <string>Output of checks:</string>
+       </property>
+      </widget>
+     </item>
+     <item>
       <widget class="QTextBrowser" name="LogOutput">
        <property name="styleSheet">
-        <string notr="true">Background: white;Border: 1px solid black;Margin: 10px</string>
+        <string notr="true">Background: white;Border: 1px solid black;Margin-left: 10px; Margin-right: 10px; Margin-bottom: 10px;</string>
        </property>
       </widget>
      </item>

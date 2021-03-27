@@ -15,6 +15,7 @@ threads = []
 
 
 def NewThread(com, Returning: bool, thread_ID: str, *arguments):
+
     """
     Will create a new thread for a function/command.
     This Function requires a global list called threads for easy managemnet of
@@ -26,6 +27,7 @@ def NewThread(com, Returning: bool, thread_ID: str, *arguments):
     """
 
     class NewThreadWorker(Thread):
+
         """
         New Thread Class
         """
@@ -61,6 +63,7 @@ def NewThread(com, Returning: bool, thread_ID: str, *arguments):
 
 
 def test_Change_File():
+
     """
     Small test for Hash Compare
     """
@@ -70,6 +73,7 @@ def test_Change_File():
 
 
 class MirageMainWindow(QMainWindow, Ui_MainWindow):
+
     """
     Manages Mirage's GUI
     """
@@ -93,6 +97,7 @@ class MirageMainWindow(QMainWindow, Ui_MainWindow):
         self.Mirage_Function_Assigns()
 
     def Scan_Files(self, dictionary):
+
         """
         Recursively traverse through the OS from the specified path
         and append found files/directories to specified dictionary along
@@ -100,6 +105,7 @@ class MirageMainWindow(QMainWindow, Ui_MainWindow):
 
         :param dictionary: the dictionary that will be appended with hashes
         """
+
         # TODO: replace os.walk with os.scandir for faster performance.
         for root, d_names, f_names in os.walk(self.Path):
             if self.running is False:
@@ -128,9 +134,11 @@ class MirageMainWindow(QMainWindow, Ui_MainWindow):
         self.updateSignal.emit(str(dictionary))
 
     def Hash_Compare(self):
+
         """
         Compares the Hashes generated to determine possible discrepancies
         """
+
         # TODO: replace most of this with os.filecmp()
         Original_Hashes_Values = list(self.Original_Hashes.values())
         New_Hashes_Values = list(self.New_Hashes.values())
@@ -155,9 +163,11 @@ class MirageMainWindow(QMainWindow, Ui_MainWindow):
         return 0
 
     def Scan_Loop(self):
+
         """
         The loop that scans the os looking for possible discrepancies
         """
+
         while self.running is True:
             print(self.Path)
             if self.Scan_Files(self.Original_Hashes) == 1:
@@ -173,9 +183,11 @@ class MirageMainWindow(QMainWindow, Ui_MainWindow):
 
     @pyqtSlot(str)
     def Log_Update(self, data):
+
         """
         Updates UI log output
         """
+
         print("updating log")
         print(data)
         self.LogOutput.setText(self.LogOutput.toPlainText() + data)
@@ -183,9 +195,11 @@ class MirageMainWindow(QMainWindow, Ui_MainWindow):
             self.LogOutput.verticalScrollBar().maximum())
 
     def Mirage_Function_Assigns(self):
+
         """
         Assign functions and actions to the different buttons and inputs
         """
+
         def Scan_Button_Action():
             global threads
             if self.running is False:
