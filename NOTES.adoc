@@ -1,0 +1,15 @@
+= Notes
+Michael Brenner
+:toc:
+
+== Problems
+=== Speed
+* [ ] When runing over directories with up to 500 items or more, the program slows down and grinds to a halt. It long enough for Windows to think that the program has froze and I lose the ability to click the stop scanning button.
+* [X] After the first scan, almost all output to the LogOutput on the GUI stops and no longer updates until the scan completes and goes through the waiting period.
+
+=== Scanning
+* [ ] Needs to be able to identify if a file has been removed, readded(no longer shown as possible discrepencie in window), and then modified.
+
+== Solutions Found
+=== Sending data to different threads in PyQt.
+* [ ] I was able to solve this problem through the use of PyQt's signal and slot system. I was trying to use other, much more complicated methods such as asyncio to get around this, however that way overcomplicated things and didn't actually work. Working with PyQt signal/slot system worked out to be the simplest and most effective solution.
