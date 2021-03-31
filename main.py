@@ -109,6 +109,11 @@ class MirageMainWindow(QMainWindow, Ui_MainWindow):
         :param dictionary: the dictionary that will be appended with hashes
         """
 
+        # Could possibly be updated to instead of using hashes for detecting
+        # updated files, you could just use the os.stat module to get the last
+        # modified date and compare them. Would most likely have a much larger
+        # performance boost.
+
         def Generate_Hash(root, f):
             sha1 = hashlib.sha1()
             self.updateSignal.emit(str(f))
