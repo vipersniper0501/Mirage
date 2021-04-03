@@ -1,5 +1,7 @@
 import os
+import pathlib
 import time
+import datetime
 import sys
 import hashlib
 from threading import Thread
@@ -56,9 +58,7 @@ def NewThread(com, Returning: bool, managed: bool, thread_ID: str, *arguments):
                                        name=thread_ID,
                                        args=(*arguments,)))
         if not Returning:
-            print(threads)
             threads[-1].start()
-            print(threads)
         else:
             threads[-1].start()
             return threads[-1].joinThread()
@@ -81,10 +81,10 @@ class MirageMainWindow(QMainWindow, Ui_MainWindow):
 
     running = False
     BUF_SIZE = 65536
-    Original_Hashes = {}
-    New_Hashes = {}
+    Original_History = {}
+    New_History = {}
     Possible_Discrepancies = {}
-    Path = ""
+    scanPath = ""
     updateSignal = pyqtSignal(str)
     discrepancy_Signal = pyqtSignal()
     wait_time = 30
@@ -94,9 +94,9 @@ class MirageMainWindow(QMainWindow, Ui_MainWindow):
         self.setupUi(self)
         self.setFixedSize(1078, 598)
         try:
-            self.Path = sys.argv[1]
+            self.scanPath = sys.argv[1]
         except IndexError:
-            self.Path = "./"
+            self.scanPath = "./"
         self.Mirage_Function_Assigns()
 
     def Scan_Files(self, dictionary):
@@ -109,12 +109,30 @@ class MirageMainWindow(QMainWindow, Ui_MainWindow):
         :param dictionary: the dictionary that will be appended with hashes
         """
 
-        # Could possibly be updated to instead of using hashes for detecting
-        # updated files, you could just use the os.stat module to get the last
-        # modified date and compare them. Would most likely have a much larger
-        # performance boost.
+        def Check_File_Data(root, f):
+
+            """
+            Checks the file for its last accessed date and appends to a
+            dictionary.
+            """
+
+            try:
+                fname = pathlib.Path(os.path.join(root, f))
+                dictionary[fname] = datetime.datetime.fromtimestamp(
+                    fname.stat().st_mtime)
+            except FileNotFoundError:
+                self.updateSignal.emit(
+                    f"File '{f}' could not be accessed."
+                )
 
         def Generate_Hash(root, f):
+
+            """
+            Generates a file hash for the inputted file
+            :param root: directory file is located in
+            :param f: file name to hash
+            """
+
             sha1 = hashlib.sha1()
             self.updateSignal.emit(str(f))
             try:
@@ -130,8 +148,7 @@ class MirageMainWindow(QMainWindow, Ui_MainWindow):
                 )
             dictionary[os.path.join(root, f)] = sha1.hexdigest()
 
-        for root, d_names, f_names in os.walk(self.Path):
-            print("Current Directory: " + str(root))
+        for root, d_names, f_names in os.walk(self.scanPath):
             if self.running is False:
                 return 1
             self.updateSignal.emit("\n"
@@ -139,56 +156,62 @@ class MirageMainWindow(QMainWindow, Ui_MainWindow):
                                    + str(d_names)
                                    + str(f_names))
             for f in f_names:
-                NewThread(Generate_Hash, False, True, str(f), root, f)
-            for t in threads:
-                if t.getName() != "Scanning System":
-                    t.join()
-                    threads.remove(t)
-            print(f"Directory {str(root)} is completed")
-        print(threads)
+                #  NewThread(Generate_Hash, False, True, str(f), root, f)
+                NewThread(Check_File_Data, False, True, str(f), root, f)
         self.updateSignal.emit("\n"+str(dictionary))
         for t in threads:
             if t.getName() != "Scanning System":
                 t.join()
                 threads.remove(t)
 
-    def Hash_Compare(self):
+    def Compare_History(self):
 
         """
-        Compares the Hashes generated to determine possible discrepancies
+        Compares the File History to determine possible discrepancies
+        Possible Discrepencies: File Added, File Removed, File Changed
         """
 
-        Original_Hashes_Values = list(self.Original_Hashes.values())
-        New_Hashes_Values = list(self.New_Hashes.values())
-        New_Hashes_Keys = list(self.New_Hashes.keys())
-        Original_Hashes_Keys = list(self.Original_Hashes.keys())
-        for x, hashes in enumerate(New_Hashes_Values):
+        # TODO NOTE: Infinite loop occurs after file delete, add, or change
+        # while scanning system creating a fatal flaw that essentially makes
+        # the program useless. Need to find a way to handle this error.
+
+        # TODO NOTE: Need to make it so that program can tell when a deleted
+        # file comes back or when a newly created file has been edited.
+
+        Original_History_Values = list(self.Original_History.values())
+        New_History_Values = list(self.New_History.values())
+        New_History_Keys = list(self.New_History.keys())
+        Original_History_Keys = list(self.Original_History.keys())
+        for x, hashes in enumerate(New_History_Values):
             if self.running is False:
                 return 1
-            if len(New_Hashes_Keys) > len(Original_Hashes_Keys):
-                if New_Hashes_Keys[x] not in Original_Hashes_Keys:
-                    if New_Hashes_Keys[x] not in self.Possible_Discrepancies:
+            # File Has Been Added
+            if len(New_History_Keys) > len(Original_History_Keys):
+                if New_History_Keys[x] not in Original_History_Keys:
+                    if New_History_Keys[x] not in self.Possible_Discrepancies:
                         self.Possible_Discrepancies[
-                            New_Hashes_Keys[x]
+                            New_History_Keys[x]
                         ] = 1
                         self.discrepancy_Signal.emit()
-                print("New file was added")
-            if len(New_Hashes_Keys) < len(Original_Hashes_Keys):
-                if Original_Hashes_Keys[x] not in New_Hashes_Keys:
-                    if Original_Hashes_Keys[x] not in self.Possible_Discrepancies:
+                print(f"New file was added {New_History_Keys[x]}")
+            # File Has Been Deleted
+            if len(New_History_Keys) < len(Original_History_Keys):
+                if Original_History_Keys[x] not in New_History_Keys:
+                    if Original_History_Keys[x] not in self.Possible_Discrepancies:
                         self.Possible_Discrepancies[
-                            Original_Hashes_Keys[x]
+                            Original_History_Keys[x]
                         ] = 2
                         self.discrepancy_Signal.emit()
-                    print("File was removed")
-            if hashes not in Original_Hashes_Values and \
-                    New_Hashes_Keys[x] in Original_Hashes_Keys:
+                    print(f"File was removed {Original_History_Keys[x]}")
+            # File Has Been Modified
+            if hashes not in Original_History_Values and \
+                    New_History_Keys[x] in Original_History_Keys:
                 print(
                     "[File Changed]:\033[91m"
-                    f"File {New_Hashes_Keys[x]}\033[0m"
+                    f"File {New_History_Keys[x]}\033[0m"
                 )
-                if New_Hashes_Keys[x] not in self.Possible_Discrepancies:
-                    self.Possible_Discrepancies[New_Hashes_Keys[x]] = 0
+                if New_History_Keys[x] not in self.Possible_Discrepancies:
+                    self.Possible_Discrepancies[New_History_Keys[x]] = 0
                     self.discrepancy_Signal.emit()
         return 0
 
@@ -200,16 +223,20 @@ class MirageMainWindow(QMainWindow, Ui_MainWindow):
         NOTE: This is run in a seperate thread
         """
 
+        start = True
         while self.running is True:
-            print(self.Path)
-            self.Original_Hashes.clear()
-            self.New_Hashes.clear()
+            print(self.scanPath)
+            # Original History becomes updated with the New History
+            self.Original_History = self.New_History
+            self.New_History.clear()
 
-            t0 = time.perf_counter()
-            if self.Scan_Files(self.Original_Hashes) == 1:
-                break
-            t1 = time.perf_counter()
-            print("ScanFiles Time: " + str(t1-t0) + "s")
+            if start is True:
+                t0 = time.perf_counter()
+                if self.Scan_Files(self.Original_History) == 1:
+                    break
+                t1 = time.perf_counter()
+                print("ScanFiles Time: " + str(t1-t0) + "s")
+                start = False
 
             for _ in range(self.wait_time):
                 if self.running is False:
@@ -217,10 +244,10 @@ class MirageMainWindow(QMainWindow, Ui_MainWindow):
                 print("Sleeping...ZZZZZZ")
                 time.sleep(1)
 
-            if self.Scan_Files(self.New_Hashes) == 1:
+            if self.Scan_Files(self.New_History) == 1:
                 break
 
-            if self.Hash_Compare() == 1:
+            if self.Compare_History() == 1:
                 break
 
     @pyqtSlot(str)
@@ -293,8 +320,6 @@ class MirageMainWindow(QMainWindow, Ui_MainWindow):
                     if t.is_alive():
                         thread_names.append(t.getName())
                         print(thread_names)
-                    else:
-                        print("Thread is still alive!")
                 if "Scanning System" in thread_names:
                     self.ScanButton.setText("Begin Scan")
                     self.ScanButton.setStyleSheet("Background: lightgreen;"
@@ -307,10 +332,10 @@ class MirageMainWindow(QMainWindow, Ui_MainWindow):
             dialog = str(QFileDialog.getExistingDirectory(self,
                                                           "Select Directory"))
             self.ScanLocationInput.setPlainText(dialog)
-            self.Path = dialog
+            self.scanPath = dialog
 
         def Folder_Input_Text():
-            self.Path = self.ScanLocationInput.toPlainText()
+            self.scanPath = self.ScanLocationInput.toPlainText()
 
         def Set_Timer():
             self.wait_time = self.sleep_Time.value()
