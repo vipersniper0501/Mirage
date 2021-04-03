@@ -88,6 +88,7 @@ class MirageMainWindow(QMainWindow, Ui_MainWindow):
     updateSignal = pyqtSignal(str)
     discrepancy_Signal = pyqtSignal()
     wait_time = 30
+    collecting_garbage = True
 
     def __init__(self, parent=None):
         super(MirageMainWindow, self).__init__(parent)
@@ -98,6 +99,22 @@ class MirageMainWindow(QMainWindow, Ui_MainWindow):
         except IndexError:
             self.scanPath = "./"
         self.Mirage_Function_Assigns()
+        # NewThread(self.garbage_Collection, False, False, "Collecting Garbage")
+
+    def garbage_Collection(self):
+
+        """
+        Iterates through the controlling threads list and removes and dead
+        threads while in another thread.
+        """
+
+        while True:
+            for t in threads:
+                if t.getName() != "Scanning System":
+                    t.join()
+                    threads.remove(t)
+            if len(threads) <= 2:
+                self.collecting_garbage = False
 
     def Scan_Files(self, dictionary):
 
@@ -120,6 +137,7 @@ class MirageMainWindow(QMainWindow, Ui_MainWindow):
                 fname = pathlib.Path(os.path.join(root, f))
                 dictionary[fname] = datetime.datetime.fromtimestamp(
                     fname.stat().st_mtime)
+                self.updateSignal.emit(f"{fname}: {dictionary[fname]}")
             except FileNotFoundError:
                 self.updateSignal.emit(
                     f"File '{f}' could not be accessed."
@@ -148,17 +166,20 @@ class MirageMainWindow(QMainWindow, Ui_MainWindow):
                 )
             dictionary[os.path.join(root, f)] = sha1.hexdigest()
 
-        for root, d_names, f_names in os.walk(self.scanPath):
+        for root, _, f_names in os.walk(self.scanPath):
             if self.running is False:
                 return 1
-            self.updateSignal.emit("\n"
-                                   + str(root)
-                                   + str(d_names)
-                                   + str(f_names))
             for f in f_names:
-                #  NewThread(Generate_Hash, False, True, str(f), root, f)
+                # NewThread(Generate_Hash, False, True, str(f), root, f)
                 NewThread(Check_File_Data, False, True, str(f), root, f)
-        self.updateSignal.emit("\n"+str(dictionary))
+        # while self.collecting_Garbage:
+        #     # attempt at locking thread until garbage collection had finished.
+        #     pass
+            for t in threads:
+                if t.getName() != "Scanning System":
+                    # print(f"Collecting Garbage: {t.getName()}")
+                    t.join()
+                    threads.remove(t)
         for t in threads:
             if t.getName() != "Scanning System":
                 t.join()
@@ -220,23 +241,19 @@ class MirageMainWindow(QMainWindow, Ui_MainWindow):
         """
         The loop that scans the os looking for possible discrepancies
 
-        NOTE: This is run in a seperate thread
+        NOTE: This is run in a separate thread
         """
 
-        start = True
         while self.running is True:
             print(self.scanPath)
-            # Original History becomes updated with the New History
-            self.Original_History = self.New_History
+            self.Original_History.clear()
             self.New_History.clear()
 
-            if start is True:
-                t0 = time.perf_counter()
-                if self.Scan_Files(self.Original_History) == 1:
-                    break
-                t1 = time.perf_counter()
-                print("ScanFiles Time: " + str(t1-t0) + "s")
-                start = False
+            t0 = time.perf_counter()
+            if self.Scan_Files(self.Original_History) == 1:
+                break
+            t1 = time.perf_counter()
+            print("ScanFiles Time: " + str(t1-t0) + "s")
 
             for _ in range(self.wait_time):
                 if self.running is False:
@@ -271,7 +288,7 @@ class MirageMainWindow(QMainWindow, Ui_MainWindow):
         """
 
         _type = [
-            "[File Hash Changed]: ",
+            "[File Has Changed]: ",
             "[File Has Been Added]: ",
             "[File Has Been Removed]: "
         ]
@@ -281,8 +298,9 @@ class MirageMainWindow(QMainWindow, Ui_MainWindow):
         while True:
             try:
                 for entry in self.Possible_Discrepancies.keys():
-                    self.DiscrepancyOutput.appendPlainText(f"{_type[self.Possible_Discrepancies[entry]]}{entry}\n")
-                    #  break
+                    self.DiscrepancyOutput.appendPlainText(
+                        f"{_type[self.Possible_Discrepancies[entry]]}{entry}\n"
+                    )
                 break
             except RuntimeError:
                 print("Exception caught!\n\n\n\n")
@@ -306,7 +324,6 @@ class MirageMainWindow(QMainWindow, Ui_MainWindow):
                 if "Scanning System" not in thread_names:
                     self.running = True
                     print(threads)
-                    print("\n\n\n")
                     self.ScanButton.setText("Stop Scan")
                     self.ScanButton.setStyleSheet("Background: pink;"
                                                   "Border: 1px solid black;"
