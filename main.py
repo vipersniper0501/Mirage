@@ -151,7 +151,7 @@ class MirageMainWindow(QMainWindow, Ui_MainWindow):
             :param f: file name to hash
             """
 
-            sha1 = hashlib.sha1()
+            md5 = hashlib.md5()
             self.updateSignal.emit(str(f))
             try:
                 with open(os.path.join(root, f), 'rb') as file:
@@ -159,12 +159,12 @@ class MirageMainWindow(QMainWindow, Ui_MainWindow):
                         data = file.read(self.BUF_SIZE)
                         if not data:
                             break
-                        sha1.update(data)
-            except FileNotFoundError:
+                        md5.update(data)
+            except FileNotFoundError or PermissionError:
                 self.updateSignal.emit(
                     f"File '{f}' could not be accessed."
                 )
-            dictionary[os.path.join(root, f)] = sha1.hexdigest()
+            dictionary[os.path.join(root, f)] = md5.hexdigest()
 
         for root, _, f_names in os.walk(self.scanPath):
             if self.running is False:
@@ -173,17 +173,17 @@ class MirageMainWindow(QMainWindow, Ui_MainWindow):
                 # NewThread(Generate_Hash, False, True, str(f), root, f)
                 NewThread(Check_File_Data, False, True, str(f), root, f)
         # while self.collecting_Garbage:
-        #     # attempt at locking thread until garbage collection had finished.
+        #   # attempt at locking thread until garbage collection had finished.
         #     pass
             for t in threads:
                 if t.getName() != "Scanning System":
                     # print(f"Collecting Garbage: {t.getName()}")
                     t.join()
                     threads.remove(t)
-        for t in threads:
-            if t.getName() != "Scanning System":
-                t.join()
-                threads.remove(t)
+        # for t in threads:
+        #     if t.getName() != "Scanning System":
+        #         t.join()
+        #         threads.remove(t)
 
     def Compare_History(self):
 
@@ -198,6 +198,12 @@ class MirageMainWindow(QMainWindow, Ui_MainWindow):
 
         # TODO NOTE: Need to make it so that program can tell when a deleted
         # file comes back or when a newly created file has been edited.
+
+        # TODO Note: There is currently no support for if a file has its name changed D:
+
+        # TODO Note: Possibly compare hashes of .exe files to the hashes found in
+        # https://virusshare.com/hashes md5 lists (has around 31,981,568 md5 hashes
+        # of known viruses)
 
         Original_History_Values = list(self.Original_History.values())
         New_History_Values = list(self.New_History.values())
