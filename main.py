@@ -99,22 +99,6 @@ class MirageMainWindow(QMainWindow, Ui_MainWindow):
         except IndexError:
             self.scanPath = "./"
         self.Mirage_Function_Assigns()
-        # NewThread(self.garbage_Collection, False, False, "Collecting Garbage")
-
-    def garbage_Collection(self):
-
-        """
-        Iterates through the controlling threads list and removes and dead
-        threads while in another thread.
-        """
-
-        while True:
-            for t in threads:
-                if t.getName() != "Scanning System":
-                    t.join()
-                    threads.remove(t)
-            if len(threads) <= 2:
-                self.collecting_garbage = False
 
     def Scan_Files(self, dictionary):
 
@@ -160,7 +144,7 @@ class MirageMainWindow(QMainWindow, Ui_MainWindow):
                         if not data:
                             break
                         md5.update(data)
-            except FileNotFoundError or PermissionError:
+            except PermissionError:
                 self.updateSignal.emit(
                     f"File '{f}' could not be accessed."
                 )
@@ -170,20 +154,16 @@ class MirageMainWindow(QMainWindow, Ui_MainWindow):
             if self.running is False:
                 return 1
             for f in f_names:
+                # Decide whether or not you want to use hashes or last accessed
+                # dates of files.
+
                 # NewThread(Generate_Hash, False, True, str(f), root, f)
                 NewThread(Check_File_Data, False, True, str(f), root, f)
-        # while self.collecting_Garbage:
-        #   # attempt at locking thread until garbage collection had finished.
-        #     pass
             for t in threads:
+                # Removing garbage threads from the managing `threads` list
                 if t.getName() != "Scanning System":
-                    # print(f"Collecting Garbage: {t.getName()}")
                     t.join()
                     threads.remove(t)
-        # for t in threads:
-        #     if t.getName() != "Scanning System":
-        #         t.join()
-        #         threads.remove(t)
 
     def Compare_History(self):
 
@@ -199,11 +179,12 @@ class MirageMainWindow(QMainWindow, Ui_MainWindow):
         # TODO NOTE: Need to make it so that program can tell when a deleted
         # file comes back or when a newly created file has been edited.
 
-        # TODO Note: There is currently no support for if a file has its name changed D:
+        # TODO Note: There is currently no support for if a file has its
+        # name changed D:
 
-        # TODO Note: Possibly compare hashes of .exe files to the hashes found in
-        # https://virusshare.com/hashes md5 lists (has around 31,981,568 md5 hashes
-        # of known viruses)
+        # TODO Note: Possibly compare hashes of .exe files to the hashes found
+        # in https://virusshare.com/hashes md5 lists (has around 31,981,568
+        # md5 hashes of known viruses)
 
         Original_History_Values = list(self.Original_History.values())
         New_History_Values = list(self.New_History.values())
@@ -318,6 +299,9 @@ class MirageMainWindow(QMainWindow, Ui_MainWindow):
         """
 
         def Scan_Button_Action():
+            """
+            Starts/Stops the scan/monitor of the specified directories.
+            """
             if self.running is False:
                 self.progressBar.setRange(0, 0)  # Creates pulsing progress bar
                 thread_names = []
@@ -352,15 +336,24 @@ class MirageMainWindow(QMainWindow, Ui_MainWindow):
                 self.progressBar.setRange(0, 1)
 
         def Folder_Selection():
+            """
+            Shows the folder/directory selection dialog.
+            """
             dialog = str(QFileDialog.getExistingDirectory(self,
                                                           "Select Directory"))
             self.ScanLocationInput.setPlainText(dialog)
             self.scanPath = dialog
 
         def Folder_Input_Text():
+            """
+            Sets the Folder Input path to scan.
+            """
             self.scanPath = self.ScanLocationInput.toPlainText()
 
         def Set_Timer():
+            """
+            Sets the amount of time between each scan.
+            """
             self.wait_time = self.sleep_Time.value()
 
         self.sleep_Time.valueChanged.connect(Set_Timer)
