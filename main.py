@@ -181,6 +181,11 @@ class MirageMainWindow(QMainWindow, Ui_MainWindow):
 
         # TODO Note: There is currently no support for if a file has its
         # name changed D:
+        # Most operatings do not have a way of natively asking for a files
+        # previous name. The only way I could do this is by scanning a files
+        # entire contents twice and compare them and its file name to tell if
+        # the name has changed. This would make the program MUCH slower than it
+        # already is.
 
         # TODO Note: Possibly compare hashes of .exe files to the hashes found
         # in https://virusshare.com/hashes md5 lists (has around 31,981,568
