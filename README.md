@@ -23,3 +23,7 @@ Once one of these changes are detected it will notify the user and print in a lo
 This program can scan the root drive, however it takes so long (for my half full one terabyte SSD drive on windows 10 took around 30 minutes) that it is impractical to use this program. The best use case for this program is to have
 it monitor smaller drives or directories with far fewer files. The actual size of the files does not particularly affect
 the speed of the program as the amount of files a directory contains.
+
+# Images
+
+![image](images/image1.png)
